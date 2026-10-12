@@ -10,7 +10,6 @@ services:
       - ollama-data:/root/.ollama
     environment:
       - OLLAMA_HOST=0.0.0.0:11434
-    command: ollama serve
     networks:
       - sunstride-network
 
@@ -22,14 +21,13 @@ services:
     environment:
       - STREAMLIT_SERVER_HEADLESS=true
       - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
     volumes:
-      - ./sunstride_journal.db:/app/sunstride_journal.db
-      - ./outdoor_briefing.m4a:/app/outdoor_briefing.m4a
+      - ./data:/app/data
     depends_on:
       - ollama
     networks:
       - sunstride-network
-    command: sh -c "ollama pull gemma2 && streamlit run app.py --server.port=8501 --server.address=0.0.0.0"
 
 volumes:
   ollama-data:

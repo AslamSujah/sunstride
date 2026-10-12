@@ -1,0 +1,27 @@
+{
+  "services": [
+    {
+      "type": "web",
+      "name": "sunstride",
+      "environment": "docker",
+      "repo": "https://github.com/AslamSujah/sunstride",
+      "buildCommand": "echo 'Building SunStride Docker image'",
+      "startCommand": "ollama serve &\nsleep 5 && ollama pull gemma2 && streamlit run app.py --server.port=8501 --server.address=0.0.0.0",
+      "regions": ["oregon"],
+      "envVars": [
+        {
+          "key": "STREAMLIT_SERVER_HEADLESS",
+          "value": "true"
+        },
+        {
+          "key": "STREAMLIT_SERVER_PORT",
+          "value": "8501"
+        },
+        {
+          "key": "STREAMLIT_SERVER_ADDRESS",
+          "value": "0.0.0.0"
+        }
+      ]
+    }
+  ]
+}
