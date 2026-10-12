@@ -44,14 +44,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
 # Start both Ollama and Streamlit
-CMD bash -c '\
-    echo "Starting Ollama service..." && \
-    ollama serve &\
-    OLLAMA_PID=$! && \
-    sleep 5 && \
-    echo "Pulling Gemma 3 1B model (smaller, faster)..." && \
-    ollama pull gemma:2b && \
-    echo "Model ready! Starting Streamlit..." && \
-    streamlit run app.py --server.port=8501 --server.address=0.0.0.0 --server.enableCORS=false && \
-    wait $OLLAMA_PID
-'
+CMD bash -c 'echo "Starting Ollama service..." && ollama serve & OLLAMA_PID=$! && sleep 5 && echo "Pulling Gemma 2B model..." && ollama pull gemma:2b && echo "Model ready! Starting Streamlit..." && streamlit run app.py --server.port=8501 --server.address=0.0.0.0 --server.enableCORS=false && wait $OLLAMA_PID'
