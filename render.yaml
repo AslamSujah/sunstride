@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: sunstride
+    runtime: docker
+    plan: standard
+    healthCheckPath: /_stcore/health
+    envVars:
+      - key: OLLAMA_MODEL
+        value: gemma3:1b
+      - key: DATA_DIR
+        value: /app/data
+    disk:
+      name: sunstride-data
+      mountPath: /app/data
+      sizeGB: 1
