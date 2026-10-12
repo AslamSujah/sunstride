@@ -6,11 +6,11 @@ import streamlit as st
 from ollama import Client
 
 # Initialize local Ollama client (Runs 100% offline)
-ollama_client = Client(host='http://localhost:11434')
+ollama_client = Client(host='http://127.0.0.1:11434')
 
 def init_db():
     """Initialize SQLite database for session logging."""
-    conn = sqlite3.connect("sunstride_journal.db")
+    conn = sqlite3.connect("/app/data/sunstride_journal.db")
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
@@ -51,16 +51,20 @@ def generate_outdoor_briefing(duration_mins, uv_index, activity_type):
     Keep it warm, direct, and conversational. Do not use hashtags or markdown symbols.
     """
     
-    response = ollama_client.generate(
-        model='gemma2',
-        prompt=prompt
-    )
-    return response['response'].strip()
+    try:
+        response = ollama_client.generate(
+            model='gemma:2b',
+            prompt=prompt,
+            stream=False
+        )
+        return response['response'].strip()
+    except Exception as e:
+        st.error(f"Error generating briefing: {str(e)}")
+        return "Step outside, breathe fresh air, and enjoy nature!"
 
-def create_local_audio(script_text, output_file="outdoor_briefing.m4a"):
+def create_local_audio(script_text, output_file="/app/data/outdoor_briefing.wav"):
     """
-    Generates an offline audio file using native speech synthesizer.
-    Falls back to pyttsx3 on systems without 'say' command.
+    Generates an offline audio file using pyttsx3 (cross-platform).
     
     Args:
         script_text (str): Text to convert to speech
@@ -70,20 +74,15 @@ def create_local_audio(script_text, output_file="outdoor_briefing.m4a"):
         str: Path to generated audio file
     """
     try:
-        # Try macOS native 'say' command first
-        cmd = ["say", "-v", "Rishi", script_text, "-o", output_file]
-        subprocess.run(cmd, check=True)
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        # Fallback to pyttsx3 for cross-platform compatibility
-        try:
-            import pyttsx3
-            engine = pyttsx3.init()
-            engine.save_to_file(script_text, output_file)
-            engine.runAndWait()
-        except ImportError:
-            st.warning("⚠️ Audio library not found. Install pyttsx3: pip install pyttsx3")
-    
-    return output_file
+        import pyttsx3
+        engine = pyttsx3.init()
+        engine.setProperty('rate', 150)  # Slower, clearer speech
+        engine.save_to_file(script_text, output_file)
+        engine.runAndWait()
+        return output_file
+    except Exception as e:
+        st.warning(f"⚠️ Audio generation issue: {str(e)}")
+        return None
 
 def log_session(duration, uv_level, activity, briefing):
     """
@@ -95,14 +94,17 @@ def log_session(duration, uv_level, activity, briefing):
         activity (str): Activity type
         briefing (str): Generated briefing text
     """
-    conn = sqlite3.connect("sunstride_journal.db")
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO sessions (duration, uv_level, activity, briefing) VALUES (?, ?, ?, ?)",
-        (duration, str(uv_level), activity, briefing)
-    )
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect("/app/data/sunstride_journal.db")
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO sessions (duration, uv_level, activity, briefing) VALUES (?, ?, ?, ?)",
+            (duration, str(uv_level), activity, briefing)
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        st.error(f"Error logging session: {str(e)}")
 
 # --- Streamlit UI Configuration ---
 st.set_page_config(
@@ -151,20 +153,23 @@ if st.button("🚀 Prepare My Session & Lock Screen", use_container_width=True):
             st.write("🎙️ **Audio Script Preview:**")
             st.info(f'"{briefing}"')
             
-            # Play audio
-            with open(audio_path, 'rb') as audio_file:
-                st.audio(audio_file.read(), format="audio/mp3")
+            # Play audio if it was created
+            if audio_path and os.path.exists(audio_path):
+                with open(audio_path, 'rb') as audio_file:
+                    st.audio(audio_file.read(), format="audio/wav")
+            else:
+                st.warning("⚠️ Audio file not generated, but text briefing ready above")
             
             st.warning("📱 **Now press Play, put your phone in your pocket, and Touch Grass!**")
         except Exception as e:
-            st.error(f"❌ Error: {str(e)}\n\nMake sure Ollama is running: `ollama serve`")
+            st.error(f"❌ Error: {str(e)}\n\nMake sure Ollama is running and Gemma model is loaded.")
 
 # --- Offline Journal Section ---
 st.divider()
 st.subheader("📖 Your Outdoor Log (Offline)")
 
 try:
-    conn = sqlite3.connect("sunstride_journal.db")
+    conn = sqlite3.connect("/app/data/sunstride_journal.db")
     cursor = conn.cursor()
     cursor.execute("SELECT duration, activity, created_at FROM sessions ORDER BY id DESC LIMIT 5")
     rows = cursor.fetchall()
